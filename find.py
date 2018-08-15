@@ -1,0 +1,65 @@
+from collections import Counter
+import pathlib
+import sys
+import uuid
+from PIL import Image
+import imagehash as ih
+
+IMAGE_EXTS = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')
+THRESHOLD = 5
+
+
+def main():
+    target_directory = sys.argv[1]
+    target_path = pathlib.Path(target_directory)
+    target_files = target_path.glob('*')
+
+    hashes = {}
+    groups = {}
+
+    # calculate hash of all images
+    for file in target_files:
+        if not (file.is_file() and file.suffix.lower() in IMAGE_EXTS):
+            continue
+
+        try:
+            hash = ih.phash(Image.open(str(file)))
+            hashes[file] = hash
+        except:
+            print('[-] hash fail', str(file))
+
+    # for hash in hashes:
+    #     print(hashes[hash])
+
+    # TODO: if grouping is two slow, change it to union find algorithm
+    for k1, v1 in hashes.items():
+        img_id = groups.get(k1, None)
+        if img_id is None:
+            img_id = uuid.uuid4().hex[:10]
+            groups[k1] = img_id
+
+        for k2, v2 in hashes.items():
+            if k1 == k2:
+                continue
+            if v1 - v2 <= THRESHOLD:
+                original_id = groups.get(k2, None)
+                if original_id is None:
+                    groups[k2] = img_id
+                else:
+                    for g in groups:
+                        if groups[g] == original_id:
+                            groups[g] = img_id
+
+    c = Counter(groups.values())
+    sorted_groups = [g for g in groups.items()]
+    sorted_groups = filter(lambda g: True if c[g[1]] > 1 else False, sorted_groups)
+    sorted_groups = sorted(sorted_groups, key=lambda g: (g[1], g[0]))
+
+    for group in sorted_groups:
+        group_path = target_path / group[1]
+        group_path.mkdir(exist_ok=True)
+        group[0].rename(group_path / group[0].name)
+
+
+if __name__ == '__main__':
+    main()
