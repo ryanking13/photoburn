@@ -1,3 +1,4 @@
+import argparse
 from collections import Counter
 import pathlib
 import sys
@@ -9,8 +10,20 @@ IMAGE_EXTS = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')
 THRESHOLD = 5
 
 
+def parse_args():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dir', help='target directory')
+    parser.add_argument('-p', '--preserve', default=False, action='store_const', const=True,
+                        help='do not delete images, only do grouping')
+
+    args = parser.parse_args()
+    return args
+
+
 def main():
-    target_directory = sys.argv[1]
+    args = parse_args()
+    target_directory = args.dir
     target_path = pathlib.Path(target_directory)
     target_files = target_path.glob('*')
 
