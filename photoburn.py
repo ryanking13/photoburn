@@ -9,8 +9,7 @@ import imagehash as ih
 VERBOSE = False
 
 IMAGE_EXTS = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')
-THRESHOLD = 5
-
+HASH_THRESHOLD = 5
 
 def debug(msg):
     if VERBOSE:
@@ -62,7 +61,7 @@ def group_hashes(hashes):
         for k2, v2 in hashes.items():
             if k1 == k2:
                 continue
-            if v1 - v2 <= THRESHOLD:
+            if v1 - v2 <= HASH_THRESHOLD:
                 original_id = groups.get(k2, None)
                 if original_id is None:
                     groups[k2] = img_id
@@ -110,7 +109,7 @@ def clear_similars(original_path, target_path):
         width, height = Image.open(str(img)).size
 
         # if this image is better than previous best
-        if file_size >= best['file_size'] and\
+        if file_size  >= best['file_size']and\
                 width >= best['width'] and height >= best['height']:
             best.update({
                 'file': img,
@@ -120,7 +119,7 @@ def clear_similars(original_path, target_path):
             })
         # if this image is worse than previous best
         elif file_size < best['file_size'] and \
-                width < best['width'] and height < best['height']:
+                width <= best['width'] and height <= best['height']:
             continue
         # not better and not worse, cannot determine
         else:
@@ -135,8 +134,6 @@ def clear_similars(original_path, target_path):
     for img in pathlib.Path(target_path).glob('*'):
         img.unlink()
         debug('Removed: {}'.format(str(img)))
-
-
 
     target_path.rmdir()
 
