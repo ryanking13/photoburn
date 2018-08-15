@@ -21,17 +21,10 @@ def parse_args():
     return args
 
 
-def main():
-    args = parse_args()
-    target_directory = args.dir
-    target_path = pathlib.Path(target_directory)
-    target_files = target_path.glob('*')
-
+def calculate_hashes(files):
     hashes = {}
-    groups = {}
 
-    # calculate hash of all images
-    for file in target_files:
+    for file in files:
         if not (file.is_file() and file.suffix.lower() in IMAGE_EXTS):
             continue
 
@@ -39,10 +32,13 @@ def main():
             hash = ih.phash(Image.open(str(file)))
             hashes[file] = hash
         except:
-            print('[-] hash fail', str(file))
+            print('[-] hash calculation fail on', str(file))
 
-    # for hash in hashes:
-    #     print(hashes[hash])
+    return hashes
+
+
+def group_hashes(hashes):
+    groups = {}
 
     # TODO: if grouping is two slow, change it to union find algorithm
     for k1, v1 in hashes.items():
@@ -63,12 +59,27 @@ def main():
                         if groups[g] == original_id:
                             groups[g] = img_id
 
-    c = Counter(groups.values())
-    sorted_groups = [g for g in groups.items()]
-    sorted_groups = filter(lambda g: True if c[g[1]] > 1 else False, sorted_groups)
-    sorted_groups = sorted(sorted_groups, key=lambda g: (g[1], g[0]))
+    # groups with only one element are filtered
+    cnt = Counter(groups.values())
+    filtered = [g for g in groups.items()]
+    filtered = filter(lambda g: True if cnt[g[1]] > 1 else False, filtered)
 
-    for group in sorted_groups:
+    # don't need to sort
+    # filtered_groups = sorted(sorted_groups, key=lambda g: (g[1], g[0]))
+
+    return filtered
+
+
+def main():
+    args = parse_args()
+    target_directory = args.dir
+    target_path = pathlib.Path(target_directory)
+    target_files = target_path.glob('**')
+
+    hashes = calculate_hashes(target_files)
+    groups = group_hashes(hashes)
+
+    for group in groups:
         group_path = target_path / group[1]
         group_path.mkdir(exist_ok=True)
         group[0].rename(group_path / group[0].name)
