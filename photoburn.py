@@ -1,9 +1,11 @@
 import argparse
 from collections import Counter
-from multiprocessing import Pool
+import hashlib
+import multiprocessing as mp
 import pathlib
 import sys
 import uuid
+import warnings
 from PIL import Image
 import imagehash as ih
 import groups
@@ -37,7 +39,9 @@ def parse_args():
 def calculate_hash(file):
     _hash = None
     try:
-        _hash = ih.phash(Image.open(str(file)))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            _hash = ih.phash(Image.open(str(file)))
     except:
         print('[-] hash calculation fail on', str(file))
 
@@ -49,21 +53,13 @@ def calculate_hashes(files):
     hashes = {}
 
     filtered_files = filter(lambda x: x.is_file() and x.suffix.lower() in IMAGE_EXTS, files)
-    pool = Pool(processes=4)
+    pool = mp.Pool(processes=mp.cpu_count())
     _hashes = pool.map(calculate_hash, filtered_files)
 
     for h in _hashes:
+        if h[1] is None:
+            continue
         hashes[h[0]] = h[1]
-
-    # for file in files:
-    #     if not (file.is_file() and file.suffix.lower() in IMAGE_EXTS):
-    #         continue
-    #
-    #     try:
-    #         hash = ih.phash(Image.open(str(file)))
-    #         hashes[file] = hash
-    #     except:
-    #         print('[-] hash calculation fail on', str(file))
 
     return hashes
 
@@ -127,12 +123,13 @@ def gather_images(base_path, groups):
     paths = set()
     for group in groups:
         # make directory by group name
-        group_path = base_path / group[1]
+        group_path = base_path / hashlib.md5(group[1].encode()).hexdigest()
         group_path.mkdir(exist_ok=True)
         paths.add(group_path)
 
         # move original image to group directory
-        group[0].rename(group_path / group[0].name)
+        path = pathlib.Path(group[0])
+        path.rename(group_path / path.name)
 
     return paths
 
@@ -149,7 +146,7 @@ def clear_similars(original_path, target_path):
         width, height = Image.open(str(img)).size
 
         # if this image is better than previous best
-        if file_size  >= best['file_size']and\
+        if file_size >= best['file_size']and\
                 width >= best['width'] and height >= best['height']:
             best.update({
                 'file': img,
