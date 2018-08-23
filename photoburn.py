@@ -1,15 +1,18 @@
 import argparse
 from collections import Counter
+from multiprocessing import Pool
 import pathlib
 import sys
 import uuid
 from PIL import Image
 import imagehash as ih
+import groups
 
 VERBOSE = False
 
 IMAGE_EXTS = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp')
 HASH_THRESHOLD = 5
+
 
 def debug(msg):
     if VERBOSE:
@@ -29,56 +32,91 @@ def parse_args():
     return args
 
 
+def calculate_hash(file):
+    _hash = None
+    try:
+        _hash = ih.phash(Image.open(str(file)))
+    except:
+        print('[-] hash calculation fail on', str(file))
+
+    return file, _hash
+
+
 def calculate_hashes(files):
     debug('Start calculating hashes...')
     hashes = {}
 
-    for file in files:
-        if not (file.is_file() and file.suffix.lower() in IMAGE_EXTS):
-            continue
+    filtered_files = filter(lambda x: x.is_file() and x.suffit.lower() in IMAGE_EXTS, files)
+    pool = Pool(processes=4)
+    _hashes = pool.map(calculate_hash, filtered_files)
 
-        try:
-            hash = ih.phash(Image.open(str(file)))
-            hashes[file] = hash
-        except:
-            print('[-] hash calculation fail on', str(file))
+    for h in _hashes:
+        hashes[h[0]] = h[1]
+
+    # for file in files:
+    #     if not (file.is_file() and file.suffix.lower() in IMAGE_EXTS):
+    #         continue
+    #
+    #     try:
+    #         hash = ih.phash(Image.open(str(file)))
+    #         hashes[file] = hash
+    #     except:
+    #         print('[-] hash calculation fail on', str(file))
 
     return hashes
 
 
 def group_hashes(hashes):
     debug('Start grouping hashes...')
-    groups = {}
 
-    # TODO: if grouping is two slow, change it to union find algorithm
+    g = groups.Groups(hashes.keys())
     for k1, v1 in hashes.items():
-        img_id = groups.get(k1, None)
-        if img_id is None:
-            # generate new group name
-            img_id = uuid.uuid4().hex[:16]
-            groups[k1] = img_id
-
+        img_id = g.find(str(k1))
         for k2, v2 in hashes.items():
             if k1 == k2:
                 continue
             if v1 - v2 <= HASH_THRESHOLD:
-                original_id = groups.get(k2, None)
-                if original_id is None:
-                    groups[k2] = img_id
-                else:
-                    for g in groups:
-                        if groups[g] == original_id:
-                            groups[g] = img_id
+                g.unite(img_id, str(k2))
 
     # groups with only one element are filtered
-    cnt = Counter(groups.values())
-    filtered = [g for g in groups.items()]
+    group_result = g.get()
+    cnt = Counter(group_result.values())
+    filtered = [item for item in group_result.items()]
     filtered = filter(lambda g: True if cnt[g[1]] > 1 else False, filtered)
 
-    # don't need to sort
-    # filtered_groups = sorted(sorted_groups, key=lambda g: (g[1], g[0]))
-
     return filtered
+    
+    # groups = {}
+    #
+    # # TODO: if grouping is two slow, change it to union find algorithm
+    # for k1, v1 in hashes.items():
+    #     img_id = groups.get(k1, None)
+    #     if img_id is None:
+    #         # generate new group name
+    #         img_id = uuid.uuid4().hex[:16]
+    #         groups[k1] = img_id
+    #
+    #     for k2, v2 in hashes.items():
+    #         if k1 == k2:
+    #             continue
+    #         if v1 - v2 <= HASH_THRESHOLD:
+    #             original_id = groups.get(k2, None)
+    #             if original_id is None:
+    #                 groups[k2] = img_id
+    #             else:
+    #                 for g in groups:
+    #                     if groups[g] == original_id:
+    #                         groups[g] = img_id
+    #
+    # # groups with only one element are filtered
+    # cnt = Counter(groups.values())
+    # filtered = [g for g in groups.items()]
+    # filtered = filter(lambda g: True if cnt[g[1]] > 1 else False, filtered)
+    #
+    # # don't need to sort
+    # # filtered_groups = sorted(sorted_groups, key=lambda g: (g[1], g[0]))
+    #
+    # return filtered
 
 
 def gather_images(base_path, groups):
