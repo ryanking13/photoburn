@@ -7,6 +7,8 @@ import uuid
 from PIL import Image
 import imagehash as ih
 import groups
+from iterview import iterview
+
 
 VERBOSE = False
 
@@ -46,7 +48,7 @@ def calculate_hashes(files):
     debug('Start calculating hashes...')
     hashes = {}
 
-    filtered_files = filter(lambda x: x.is_file() and x.suffit.lower() in IMAGE_EXTS, files)
+    filtered_files = filter(lambda x: x.is_file() and x.suffix.lower() in IMAGE_EXTS, files)
     pool = Pool(processes=4)
     _hashes = pool.map(calculate_hash, filtered_files)
 
@@ -70,7 +72,7 @@ def group_hashes(hashes):
     debug('Start grouping hashes...')
 
     g = groups.Groups(hashes.keys())
-    for k1, v1 in hashes.items():
+    for k1, v1 in iterview(hashes.items()):
         img_id = g.find(str(k1))
         for k2, v2 in hashes.items():
             if k1 == k2:
@@ -85,7 +87,7 @@ def group_hashes(hashes):
     filtered = filter(lambda g: True if cnt[g[1]] > 1 else False, filtered)
 
     return filtered
-    
+
     # groups = {}
     #
     # # TODO: if grouping is two slow, change it to union find algorithm

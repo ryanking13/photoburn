@@ -1,7 +1,7 @@
 class Groups:
 
     def __init__(self, keys):
-        self._rank = [0 for _ in range(len(keys))]
+        self._rank = {str(key): 0 for key in range(len(keys))}
         self._parent = {str(key): str(key) for key in keys}
 
     def find(self, x):
