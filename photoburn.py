@@ -31,7 +31,8 @@ def parse_args():
                         help='do not delete images, only do grouping')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='print all debug messages')
-
+    parser.add_argument('-b', '--best', default='ALL',
+                        help='best selection mechanism (filesize, resolution, all)')
     args = parser.parse_args()
     return args
 
@@ -133,18 +134,15 @@ def gather_images(base_path, groups):
 
     return paths
 
+def update_best(best, img, file_size, width, height, best_algorithm='ALL'):
+    best_algorithm = best_algorithm.upper()
 
-def clear_similars(original_path, target_path):
-    print('Removing similar images on "{}"'.format(target_path))
+    if best_algorithm not in ('ALL', 'FILESIZE', 'RESOLUTION'):
+        print('[-] Undefined best selection algorihtm: {}, using default'.format(best_algorithm))
+        best_algorithm = 'ALL'
 
-    best = dict(file=None, file_size=0, width=0, height=0)
 
-    # find best image
-    for img in pathlib.Path(target_path).glob('*'):
-        file_size = img.stat().st_size
-        # TODO: calculateing width and height without opening?
-        width, height = Image.open(str(img)).size
-
+    if best_algorithm == 'ALL':
         # if this image is better than previous best
         if file_size >= best['file_size']and\
                 width >= best['width'] and height >= best['height']:
@@ -161,6 +159,58 @@ def clear_similars(original_path, target_path):
         # not better and not worse, cannot determine
         else:
             print('[-] Cannot determine best on "{}", skipped'.format(target_path))
+            return False
+
+    elif best_algorithm == 'FILESIZE':
+        # if this image is better than previous best
+        if file_size >= best['file_size']:
+            best.update({
+                'file': img,
+                'file_size': file_size,
+                'width': width,
+                'height': height,
+            })
+        # if this image is worse than previous best
+        elif file_size < best['file_size']:
+            continue
+        # not better and not worse, cannot determine
+        else:
+            print('[-] Cannot determine best on "{}", skipped'.format(target_path))
+            return False
+
+    elif best_algorithm == 'RESOLUTION':
+        # if this image is better than previous best
+        if width >= best['width'] and height >= best['height']:
+            best.update({
+                'file': img,
+                'file_size': file_size,
+                'width': width,
+                'height': height,
+            })
+        # if this image is worse than previous best
+        elif width <= best['width'] and height <= best['height']:
+            continue
+        # not better and not worse, cannot determine
+        else:
+            print('[-] Cannot determine best on "{}", skipped'.format(target_path))
+            return False
+
+    return True
+
+
+def clear_similars(original_path, target_path, best_algorithm):
+    print('Removing similar images on "{}"'.format(target_path))
+
+    best = dict(file=None, file_size=0, width=0, height=0)
+
+    # find best image
+    for img in pathlib.Path(target_path).glob('*'):
+        file_size = img.stat().st_size
+        # TODO: calculateing width and height without opening?
+        width, height = Image.open(str(img)).size
+
+        success = update_best(best, img, file_size, width, height, best_algorihtm)
+        if not success:
             return
 
     # move best image to original directory
@@ -194,7 +244,7 @@ def main():
     # if preserve option is not set, remove duplicate images
     if not args.preserve:
         for group_directory in group_directories:
-            clear_similars(target_path, group_directory)
+            clear_similars(target_path, group_directory, args.best)
 
 
 if __name__ == '__main__':
