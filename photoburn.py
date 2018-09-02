@@ -134,13 +134,13 @@ def gather_images(base_path, groups):
 
     return paths
 
+
 def update_best(best, img, file_size, width, height, best_algorithm='ALL'):
     best_algorithm = best_algorithm.upper()
 
     if best_algorithm not in ('ALL', 'FILESIZE', 'RESOLUTION'):
         print('[-] Undefined best selection algorihtm: {}, using default'.format(best_algorithm))
         best_algorithm = 'ALL'
-
 
     if best_algorithm == 'ALL':
         # if this image is better than previous best
@@ -155,10 +155,9 @@ def update_best(best, img, file_size, width, height, best_algorithm='ALL'):
         # if this image is worse than previous best
         elif file_size < best['file_size'] and \
                 width <= best['width'] and height <= best['height']:
-            continue
+            return True
         # not better and not worse, cannot determine
         else:
-            print('[-] Cannot determine best on "{}", skipped'.format(target_path))
             return False
 
     elif best_algorithm == 'FILESIZE':
@@ -172,10 +171,9 @@ def update_best(best, img, file_size, width, height, best_algorithm='ALL'):
             })
         # if this image is worse than previous best
         elif file_size < best['file_size']:
-            continue
+            return True
         # not better and not worse, cannot determine
         else:
-            print('[-] Cannot determine best on "{}", skipped'.format(target_path))
             return False
 
     elif best_algorithm == 'RESOLUTION':
@@ -189,10 +187,9 @@ def update_best(best, img, file_size, width, height, best_algorithm='ALL'):
             })
         # if this image is worse than previous best
         elif width <= best['width'] and height <= best['height']:
-            continue
+            return True
         # not better and not worse, cannot determine
         else:
-            print('[-] Cannot determine best on "{}", skipped'.format(target_path))
             return False
 
     return True
@@ -209,8 +206,9 @@ def clear_similars(original_path, target_path, best_algorithm):
         # TODO: calculateing width and height without opening?
         width, height = Image.open(str(img)).size
 
-        success = update_best(best, img, file_size, width, height, best_algorihtm)
+        success = update_best(best, img, file_size, width, height, best_algorithm)
         if not success:
+            print('[-] Cannot determine best on "{}", skipped'.format(target_path))
             return
 
     # move best image to original directory
