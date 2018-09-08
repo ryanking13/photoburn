@@ -1,6 +1,6 @@
 # Photoburn
 
-Find duplicate & similar photos and remove it.
+Find duplicate & similar photos and group/remove it.
 
 [phash](http://www.hackerfactor.com/blog/index.php?/archives/432-Looks-Like-It.html) is used for comparing images.
 
@@ -28,9 +28,3 @@ optional arguments:
   -p, --preserve  do not delete images, only do grouping
   -v, --verbose   print all debug messages
 ```
-
-## TODO
-
-- show progress feedback
-- multiprocessing on hashing images
-- change grouping method to union find
